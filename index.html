@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="th">
 
 <head>
@@ -11,97 +10,49 @@
 
 <title>E-Ticket Check-in</title>
 
-
 <script
   src="https://unpkg.com/html5-qrcode"
   type="text/javascript">
 </script>
 
-
 <style>
 
 body{
-
   margin:0;
-
   padding:20px;
-
-  font-family:
-    Arial,
-    sans-serif;
-
+  font-family:Arial,sans-serif;
   background:#f3f4f6;
-
   text-align:center;
-
 }
-
 
 h1{
-
   margin-bottom:5px;
-
 }
-
 
 #reader{
-
   width:100%;
-
   max-width:500px;
-
   margin:20px auto;
-
   background:white;
-
   border-radius:15px;
-
   overflow:hidden;
-
 }
-
 
 #result{
-
   max-width:500px;
-
   margin:20px auto;
-
   padding:20px;
-
   background:white;
-
   border-radius:15px;
-
   font-size:18px;
-
 }
-
 
 .success{
-
   color:#16803c;
-
 }
-
 
 .error{
-
   color:#d00000;
-
-}
-
-
-button{
-
-  padding:14px 25px;
-
-  border:0;
-
-  border-radius:10px;
-
-  font-size:18px;
-
 }
 
 </style>
@@ -111,30 +62,18 @@ button{
 
 <body>
 
+<h1>🎫 E-Ticket Check-in</h1>
 
-<h1>
-🎫 E-Ticket Check-in
-</h1>
-
-
-<p>
-สแกน QR Code บัตรเข้างาน
-</p>
-
+<p>สแกน QR Code บัตรเข้างาน</p>
 
 <div id="reader"></div>
 
-
 <div id="result">
-
 📷 พร้อมสแกน
-
 </div>
 
 
-
 <script>
-
 
 /* ==========================================
    Apps Script Web App
@@ -154,18 +93,12 @@ let scanning = true;
 function onScanSuccess(decodedText){
 
   if(!scanning){
-
     return;
-
   }
-
 
   scanning = false;
 
-
-  document.getElementById(
-    "result"
-  ).innerHTML =
+  document.getElementById("result").innerHTML =
     "⏳ กำลังตรวจสอบ Ticket...";
 
 
@@ -184,10 +117,7 @@ function onScanSuccess(decodedText){
 
 
   if(match){
-
-    ticketID =
-      match[1];
-
+    ticketID = match[1];
   }
 
 
@@ -198,45 +128,86 @@ function onScanSuccess(decodedText){
 
 /* ==========================================
    ส่ง Ticket ไป Apps Script
-   ด้วย JSONP
+   JSONP
 ========================================== */
 
 function checkIn(ticketID){
 
   const callbackName =
-    "checkInCallback_" +
-    Date.now();
+    "checkInCallback_" + Date.now();
 
+
+  /* ========================================
+     สร้าง Callback
+  ======================================== */
 
   window[callbackName] =
     function(result){
 
-      showResult(result);
+      try{
+
+        showResult(result);
+
+      }
+      catch(error){
+
+        document.getElementById("result").innerHTML =
+
+          "<div class='error'>" +
+
+          "<h2>❌ เกิดข้อผิดพลาด</h2>" +
+
+          "<p>" +
+          error.message +
+          "</p>" +
+
+          "</div>";
+
+      }
 
 
-      delete
-        window[callbackName];
+      /* ====================================
+         ลบ Callback
+      ==================================== */
+
+      delete window[callbackName];
 
 
-      setTimeout(
-        function(){
+      const oldScript =
+        document.getElementById(callbackName);
 
-          scanning = true;
 
-          document.getElementById(
-            "result"
-          ).innerHTML =
-            "📷 พร้อมสแกนใบถัดไป";
+      if(oldScript){
+        oldScript.remove();
+      }
 
-        },
-        3000
-      );
+
+      /* ====================================
+         พร้อมสแกนใบต่อไป
+      ==================================== */
+
+      setTimeout(function(){
+
+        scanning = true;
+
+        document.getElementById("result").innerHTML =
+          "📷 พร้อมสแกนใบถัดไป";
+
+      },3000);
 
     };
 
 
+  /* ========================================
+     สร้าง Script JSONP
+  ======================================== */
+
   const script =
     document.createElement("script");
+
+
+  script.id =
+    callbackName;
 
 
   script.src =
@@ -244,49 +215,52 @@ function checkIn(ticketID){
     "?ticketID=" +
     encodeURIComponent(ticketID) +
     "&callback=" +
-    callbackName;
+    encodeURIComponent(callbackName);
 
+
+  /* ========================================
+     เชื่อมต่อไม่ได้
+  ======================================== */
 
   script.onerror =
     function(){
 
-      document.getElementById(
-        "result"
-      ).innerHTML =
+      document.getElementById("result").innerHTML =
 
         "<div class='error'>" +
 
         "<h2>❌ เชื่อมต่อระบบไม่ได้</h2>" +
 
-        "<p>ไม่สามารถเชื่อมต่อ Apps Script</p>" +
+        "<p>ไม่สามารถเชื่อมต่อ Apps Script ได้</p>" +
+
+        "<p>กรุณาตรวจสอบ Web App และสิทธิ์การเข้าถึง</p>" +
 
         "</div>";
 
 
-      delete
-        window[callbackName];
+      delete window[callbackName];
 
 
-      setTimeout(
-        function(){
+      script.remove();
 
-          scanning = true;
 
-          document.getElementById(
-            "result"
-          ).innerHTML =
-            "📷 พร้อมสแกนใบถัดไป";
+      setTimeout(function(){
 
-        },
-        3000
-      );
+        scanning = true;
+
+        document.getElementById("result").innerHTML =
+          "📷 พร้อมสแกนใบถัดไป";
+
+      },3000);
 
     };
 
 
-  document.body.appendChild(
-    script
-  );
+  /* ========================================
+     ส่ง Request
+  ======================================== */
+
+  document.body.appendChild(script);
 
 }
 
@@ -297,30 +271,32 @@ function checkIn(ticketID){
 
 function showResult(result){
 
+  /* ========================================
+     CHECK-IN สำเร็จ
+  ======================================== */
+
   if(result.success){
 
-    document.getElementById(
-      "result"
-    ).innerHTML =
+    document.getElementById("result").innerHTML =
 
       "<div class='success'>" +
 
       "<h2>✅ CHECK-IN สำเร็จ</h2>" +
 
       "<p><b>Ticket:</b> " +
-      result.ticketID +
+      (result.ticketID || "-") +
       "</p>" +
 
       "<p><b>ชื่อ:</b> " +
-      result.customer +
+      (result.customer || "-") +
       "</p>" +
 
       "<p><b>Zone:</b> " +
-      result.zone +
+      (result.zone || "-") +
       "</p>" +
 
       "<p><b>ประเภท:</b> " +
-      result.ticketType +
+      (result.ticketType || "-") +
       "</p>" +
 
       "</div>";
@@ -330,22 +306,28 @@ function showResult(result){
   }
 
 
+  /* ========================================
+     Ticket ถูกใช้แล้ว
+  ======================================== */
+
   if(result.alreadyUsed){
 
-    document.getElementById(
-      "result"
-    ).innerHTML =
+    document.getElementById("result").innerHTML =
 
       "<div class='error'>" +
 
       "<h2>⚠️ ใช้บัตรไปแล้ว</h2>" +
 
       "<p><b>Ticket:</b> " +
-      result.ticketID +
+      (result.ticketID || "-") +
       "</p>" +
 
       "<p><b>ชื่อ:</b> " +
-      result.customer +
+      (result.customer || "-") +
+      "</p>" +
+
+      "<p><b>Zone:</b> " +
+      (result.zone || "-") +
       "</p>" +
 
       "</div>";
@@ -355,20 +337,22 @@ function showResult(result){
   }
 
 
-  document.getElementById(
-    "result"
-  ).innerHTML =
+  /* ========================================
+     ไม่พบ Ticket
+  ======================================== */
+
+  document.getElementById("result").innerHTML =
 
     "<div class='error'>" +
 
     "<h2>❌ ไม่พบ Ticket</h2>" +
 
     "<p>" +
-    (
-      result.message ||
-      result.ticketID ||
-      "ไม่ทราบสาเหตุ"
-    ) +
+    (result.message || "ไม่พบ Ticket ในระบบ") +
+    "</p>" +
+
+    "<p><b>Ticket:</b> " +
+    (result.ticketID || "-") +
     "</p>" +
 
     "</div>";
@@ -401,11 +385,8 @@ const scanner =
       fps:10,
 
       qrbox:{
-
         width:250,
-
         height:250
-
       },
 
       rememberLastUsedCamera:true,
@@ -423,7 +404,6 @@ scanner.render(
   onScanSuccess,
   onScanFailure
 );
-
 
 </script>
 
