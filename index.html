@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>E-Ticket Check-in</title>
+
+<script src="https://unpkg.com/html5-qrcode"
+        type="text/javascript"></script>
+
+<style>
+
+body{
+  margin:0;
+  padding:20px;
+  font-family:Arial,sans-serif;
+  background:#f3f4f6;
+  text-align:center;
+}
+
+h1{
+  margin-bottom:5px;
+}
+
+#reader{
+  width:100%;
+  max-width:500px;
+  margin:20px auto;
+  background:white;
+  border-radius:15px;
+  overflow:hidden;
+}
+
+#result{
+  max-width:500px;
+  margin:20px auto;
+  padding:20px;
+  background:white;
+  border-radius:15px;
+  font-size:18px;
+}
+
+.success{
+  color:#16803c;
+}
+
+.error{
+  color:#d00000;
+}
+
+button{
+  padding:14px 25px;
+  border:0;
+  border-radius:10px;
+  font-size:18px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<h1>🎫 E-Ticket Check-in</h1>
+
+<p>สแกน QR Code บัตรเข้างาน</p>
+
+<div id="reader"></div>
+
+<div id="result">
+  📷 กำลังเตรียมกล้อง...
+</div>
+
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbyOs7oQf99Zrfyofg_WE2ss0FM1V3Zb5CAYdJ1GCwXnLomCmD1eDp-On2GHu4RHEXC9yg/exec";
+
+
+let scanning = true;
+
+
+/* ==========================================
+   QR SCAN
+========================================== */
+
+function onScanSuccess(decodedText){
+
+  if(!scanning){
+    return;
+  }
+
+  scanning = false;
+
+
+  document.getElementById("result").innerHTML =
+    "⏳ กำลังตรวจสอบ Ticket...";
+
+
+  let ticketID = decodedText;
+
+
+  /* ดึง Ticket ID จาก QR */
+
+  const match =
+    decodedText.match(
+      /Ticket ID:\s*([A-Za-z0-9_-]+)/
+    );
+
+
+  if(match){
+
+    ticketID = match[1];
+
+  }
+
+
+  checkIn(ticketID);
+
+}
+
+
+/* ==========================================
+   ส่ง Ticket ไป Apps Script
+========================================== */
+
+function checkIn(ticketID){
+
+  fetch(
+    API_URL +
+    "?action=checkin&ticketID=" +
+    encodeURIComponent(ticketID)
+  )
+
+  .then(function(response){
+
+    return response.json();
+
+  })
+
+  .then(function(result){
+
+    showResult(result);
+
+  })
+
+  .catch(function(error){
+
+    document.getElementById("result").innerHTML =
+
+      "<div class='error'>" +
+
+      "<h2>❌ เชื่อมต่อระบบไม่ได้</h2>" +
+
+      "<p>" +
+      error.message +
+      "</p>" +
+
+      "</div>";
+
+  })
+
+  .finally(function(){
+
+    setTimeout(function(){
+
+      scanning = true;
+
+      document.getElementById("result").innerHTML =
+        "📷 พร้อมสแกนใบถัดไป";
+
+    },3000);
+
+  });
+
+}
+
+
+/* ==========================================
+   แสดงผล
+========================================== */
+
+function showResult(result){
+
+  if(result.success){
+
+    document.getElementById("result").innerHTML =
+
+      "<div class='success'>" +
+
+      "<h2>✅ CHECK-IN สำเร็จ</h2>" +
+
+      "<p><b>Ticket:</b> " +
+      result.ticketID +
+      "</p>" +
+
+      "<p><b>ชื่อ:</b> " +
+      result.customer +
+      "</p>" +
+
+      "<p><b>Zone:</b> " +
+      result.zone +
+      "</p>" +
+
+      "<p><b>ประเภท:</b> " +
+      result.ticketType +
+      "</p>" +
+
+      "</div>";
+
+    return;
+
+  }
+
+
+  if(result.alreadyCheckIn){
+
+    document.getElementById("result").innerHTML =
+
+      "<div class='error'>" +
+
+      "<h2>⚠ ใช้บัตรไปแล้ว</h2>" +
+
+      "<p><b>Ticket:</b> " +
+      result.ticketID +
+      "</p>" +
+
+      "<p><b>ชื่อ:</b> " +
+      result.customer +
+      "</p>" +
+
+      "</div>";
+
+    return;
+
+  }
+
+
+  document.getElementById("result").innerHTML =
+
+    "<div class='error'>" +
+
+    "<h2>❌ ไม่พบ Ticket</h2>" +
+
+    "<p>" +
+    result.ticketID +
+    "</p>" +
+
+    "</div>";
+
+}
+
+
+function onScanFailure(error){
+
+  /* ไม่ต้องแสดงอะไร */
+
+}
+
+
+/* ==========================================
+   เปิด Scanner
+========================================== */
+
+const scanner =
+  new Html5QrcodeScanner(
+
+    "reader",
+
+    {
+      fps:10,
+
+      qrbox:{
+        width:250,
+        height:250
+      }
+
+    },
+
+    false
+
+  );
+
+
+scanner.render(
+  onScanSuccess,
+  onScanFailure
+);
+
+</script>
+
+</body>
+
+</html>
