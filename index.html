@@ -3,111 +3,168 @@
 
 <head>
 
-<meta charset="UTF-8">
+  <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
 
-<title>E-Ticket Check-in</title>
+  <title>E-Ticket Check-in</title>
 
-<script src="https://unpkg.com/html5-qrcode"
-        type="text/javascript"></script>
+  <script
+    src="https://unpkg.com/html5-qrcode"
+    type="text/javascript">
+  </script>
 
-<style>
 
-body{
-  margin:0;
-  padding:20px;
-  font-family:Arial,sans-serif;
-  background:#f3f4f6;
-  text-align:center;
-}
+  <style>
 
-h1{
-  margin-bottom:5px;
-}
+    body {
 
-#reader{
-  width:100%;
-  max-width:500px;
-  margin:20px auto;
-  background:white;
-  border-radius:15px;
-  overflow:hidden;
-}
+      margin: 0;
 
-#result{
-  max-width:500px;
-  margin:20px auto;
-  padding:20px;
-  background:white;
-  border-radius:15px;
-  font-size:18px;
-}
+      padding: 20px;
 
-.success{
-  color:#16803c;
-}
+      font-family: Arial, sans-serif;
 
-.error{
-  color:#d00000;
-}
+      background: #f3f4f6;
 
-button{
-  padding:14px 25px;
-  border:0;
-  border-radius:10px;
-  font-size:18px;
-}
+      text-align: center;
 
-</style>
+    }
+
+
+    h1 {
+
+      margin-bottom: 5px;
+
+    }
+
+
+    #reader {
+
+      width: 100%;
+
+      max-width: 500px;
+
+      margin: 20px auto;
+
+      background: white;
+
+      border-radius: 15px;
+
+      overflow: hidden;
+
+    }
+
+
+    #result {
+
+      max-width: 500px;
+
+      margin: 20px auto;
+
+      padding: 20px;
+
+      background: white;
+
+      border-radius: 15px;
+
+      font-size: 18px;
+
+    }
+
+
+    .success {
+
+      color: #16803c;
+
+    }
+
+
+    .error {
+
+      color: #d00000;
+
+    }
+
+
+    .waiting {
+
+      color: #555;
+
+    }
+
+  </style>
 
 </head>
 
 
 <body>
 
-<h1>🎫 E-Ticket Check-in</h1>
 
-<p>สแกน QR Code บัตรเข้างาน</p>
+  <h1>🎫 E-Ticket Check-in</h1>
 
-<div id="reader"></div>
+  <p>สแกน QR Code บัตรเข้างาน</p>
 
-<div id="result">
-  📷 กำลังเตรียมกล้อง...
-</div>
+
+  <div id="reader"></div>
+
+
+  <div id="result"
+       class="waiting">
+
+    📷 กำลังเตรียมกล้อง...
+
+  </div>
+
 
 
 <script>
 
+
+// ==========================================
+// Google Apps Script Web App
+// ==========================================
+
 const API_URL =
-"https://script.google.com/macros/s/AKfycbyOs7oQf99Zrfyofg_WE2ss0FM1V3Zb5CAYdJ1GCwXnLomCmD1eDp-On2GHu4RHEXC9yg/exec";
+  "https://script.google.com/macros/s/AKfycbyOs7oQf99Zrfyofg_WE2ss0FM1V3Zb5CAYdJ1GCwXnLomCmD1eDp-On2GHu4RHEXC9yg/exec";
+
 
 
 let scanning = true;
 
 
-/* ==========================================
-   QR SCAN
-========================================== */
 
-function onScanSuccess(decodedText){
+// ==========================================
+// QR SCAN SUCCESS
+// ==========================================
 
-  if(!scanning){
+function onScanSuccess(decodedText) {
+
+
+  if (!scanning) {
+
     return;
+
   }
+
 
   scanning = false;
 
 
   document.getElementById("result").innerHTML =
+
     "⏳ กำลังตรวจสอบ Ticket...";
+
 
 
   let ticketID = decodedText;
 
 
-  /* ดึง Ticket ID จาก QR */
+
+  // ========================================
+  // ดึง Ticket ID จาก QR Text
+  // ========================================
 
   const match =
     decodedText.match(
@@ -115,81 +172,181 @@ function onScanSuccess(decodedText){
     );
 
 
-  if(match){
+  if (match) {
 
     ticketID = match[1];
 
   }
 
 
+
+  // ========================================
+  // ส่งไป Apps Script
+  // ========================================
+
   checkIn(ticketID);
 
 }
 
 
-/* ==========================================
-   ส่ง Ticket ไป Apps Script
-========================================== */
 
-function checkIn(ticketID){
+// ==========================================
+// ส่ง Ticket ไป Apps Script
+// ใช้ JSONP แทน fetch()
+// เพื่อไม่ติด CORS
+// ==========================================
 
-  fetch(
+function checkIn(ticketID) {
+
+
+  const callbackName =
+    "checkInCallback_" +
+    Date.now();
+
+
+
+  // ========================================
+  // สร้าง callback
+  // ========================================
+
+  window[callbackName] =
+    function(result) {
+
+
+      try {
+
+        showResult(result);
+
+      } catch (error) {
+
+        document.getElementById("result").innerHTML =
+
+          "<div class='error'>" +
+
+          "<h2>❌ เกิดข้อผิดพลาด</h2>" +
+
+          "<p>" +
+          error.message +
+          "</p>" +
+
+          "</div>";
+
+      }
+
+
+
+      // ====================================
+      // ลบ callback
+      // ====================================
+
+      delete window[callbackName];
+
+
+
+      // ====================================
+      // พร้อมสแกนใบถัดไป
+      // ====================================
+
+      setTimeout(function() {
+
+        scanning = true;
+
+        document.getElementById("result").innerHTML =
+
+          "📷 พร้อมสแกนใบถัดไป";
+
+      }, 3000);
+
+    };
+
+
+
+  // ========================================
+  // สร้าง URL
+  // ========================================
+
+  const url =
+
     API_URL +
-    "?action=checkin&ticketID=" +
-    encodeURIComponent(ticketID)
-  )
 
-  .then(function(response){
+    "?ticketID=" +
 
-    return response.json();
+    encodeURIComponent(ticketID) +
 
-  })
+    "&callback=" +
 
-  .then(function(result){
+    encodeURIComponent(callbackName);
 
-    showResult(result);
 
-  })
 
-  .catch(function(error){
+  // ========================================
+  // สร้าง Script
+  // ========================================
 
-    document.getElementById("result").innerHTML =
+  const script =
+    document.createElement("script");
 
-      "<div class='error'>" +
 
-      "<h2>❌ เชื่อมต่อระบบไม่ได้</h2>" +
+  script.src = url;
 
-      "<p>" +
-      error.message +
-      "</p>" +
 
-      "</div>";
 
-  })
+  // ========================================
+  // ถ้าเชื่อมต่อไม่ได้
+  // ========================================
 
-  .finally(function(){
+  script.onerror =
+    function() {
 
-    setTimeout(function(){
 
-      scanning = true;
+      delete window[callbackName];
+
 
       document.getElementById("result").innerHTML =
-        "📷 พร้อมสแกนใบถัดไป";
 
-    },3000);
+        "<div class='error'>" +
 
-  });
+        "<h2>❌ เชื่อมต่อระบบไม่ได้</h2>" +
+
+        "<p>ไม่สามารถเชื่อมต่อ Google Apps Script</p>" +
+
+        "</div>";
+
+
+
+      setTimeout(function() {
+
+        scanning = true;
+
+        document.getElementById("result").innerHTML =
+
+          "📷 พร้อมสแกนใบถัดไป";
+
+      }, 3000);
+
+    };
+
+
+
+  document.body.appendChild(script);
 
 }
 
 
-/* ==========================================
-   แสดงผล
-========================================== */
 
-function showResult(result){
+// ==========================================
+// แสดงผลการ Check-in
+// ==========================================
 
-  if(result.success){
+function showResult(result) {
+
+
+  // ========================================
+  // CHECK-IN สำเร็จ
+  // ========================================
+
+  if (result.success) {
+
 
     document.getElementById("result").innerHTML =
 
@@ -198,50 +355,87 @@ function showResult(result){
       "<h2>✅ CHECK-IN สำเร็จ</h2>" +
 
       "<p><b>Ticket:</b> " +
+
       result.ticketID +
+
       "</p>" +
 
       "<p><b>ชื่อ:</b> " +
+
       result.customer +
+
       "</p>" +
 
       "<p><b>Zone:</b> " +
+
       result.zone +
+
       "</p>" +
 
-      "<p><b>ประเภท:</b> " +
-      result.ticketType +
+      "<p><b>Order:</b> " +
+
+      result.orderID +
+
       "</p>" +
 
       "</div>";
+
 
     return;
 
   }
 
 
-  if(result.alreadyCheckIn){
+
+  // ========================================
+  // Ticket ถูกใช้แล้ว
+  // ========================================
+
+  if (result.alreadyUsed) {
+
 
     document.getElementById("result").innerHTML =
 
       "<div class='error'>" +
 
-      "<h2>⚠ ใช้บัตรไปแล้ว</h2>" +
+      "<h2>⚠️ ใช้บัตรไปแล้ว</h2>" +
 
       "<p><b>Ticket:</b> " +
+
       result.ticketID +
+
       "</p>" +
 
       "<p><b>ชื่อ:</b> " +
+
       result.customer +
+
+      "</p>" +
+
+      "<p><b>Zone:</b> " +
+
+      result.zone +
+
+      "</p>" +
+
+      "<p>" +
+
+      (result.message || "") +
+
       "</p>" +
 
       "</div>";
+
 
     return;
 
   }
 
+
+
+  // ========================================
+  // ไม่พบ Ticket
+  // ========================================
 
   document.getElementById("result").innerHTML =
 
@@ -250,7 +444,11 @@ function showResult(result){
     "<h2>❌ ไม่พบ Ticket</h2>" +
 
     "<p>" +
-    result.ticketID +
+
+    (result.message ||
+
+     "ไม่พบข้อมูล Ticket") +
+
     "</p>" +
 
     "</div>";
@@ -258,28 +456,39 @@ function showResult(result){
 }
 
 
-function onScanFailure(error){
 
-  /* ไม่ต้องแสดงอะไร */
+// ==========================================
+// QR Scan Failure
+// ==========================================
+
+function onScanFailure(error) {
+
+  // ไม่ต้องแสดงอะไร
 
 }
 
 
-/* ==========================================
-   เปิด Scanner
-========================================== */
+
+// ==========================================
+// เปิด QR Scanner
+// ==========================================
 
 const scanner =
+
   new Html5QrcodeScanner(
 
     "reader",
 
     {
-      fps:10,
 
-      qrbox:{
-        width:250,
-        height:250
+      fps: 10,
+
+      qrbox: {
+
+        width: 250,
+
+        height: 250
+
       }
 
     },
@@ -289,12 +498,18 @@ const scanner =
   );
 
 
+
 scanner.render(
+
   onScanSuccess,
+
   onScanFailure
+
 );
 
+
 </script>
+
 
 </body>
 
